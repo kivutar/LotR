@@ -31,7 +31,7 @@ let remoteTickDelta = 0;
 let localInputHistory = new Uint32Array(historySize);
 let remoteInputHistory = new Uint32Array(historySize);
 let lastSyncedTick = -1;
-// let messages chan []byte;
+let messages = [];
 
 const MaxFrames = 60;
 let inputBuffers = [
@@ -61,13 +61,16 @@ export default class Netplay {
     this.localPlayerPort = lpp;
     this.remotePlayerPort = rpp;
 
-    this.listen();
+    this.conn.on("data", (data) => {
+      messages.push(data);
+    })
 
     this.sendPacket(this.makeHandshakePacket(), 1);
   }
 
-  listen() {
-    this.conn.on("data", (data) => {
+  receiveData() {
+    while(messages.length) {
+      const data = messages.shift();
       const pkt = JSON.parse(data);
 
       if (pkt.code == MsgCodeHandshake) {
@@ -115,14 +118,14 @@ export default class Netplay {
           isDesynced();
         }
       }
-    });
+    }
   }
 
   update() {
     let lastGameTick = tick;
     let shouldUpdate = false;
 
-    // receiveData();
+    this.receiveData();
 
     if (connectedToClient) {
       // First we assume that the game can be updated, sync checks below can halt updates
@@ -411,8 +414,7 @@ export default class Netplay {
   }
 
   inputIndex(offset /*int64*/) /*int64*/ {
-    let tck = tick + offset;
-    return (MaxFrames + tck) % MaxFrames;
+    return (MaxFrames + tick + offset) % MaxFrames;
   }
 
   // inputSetState forces the input state for a given player
