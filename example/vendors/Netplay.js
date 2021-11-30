@@ -96,7 +96,7 @@ export default class Netplay {
           confirmedTick = receivedTick;
 
           for (let offset = sendHistorySize - 1; offset >= 0; offset--) { // 4, 3, 2, 1, 0
-            const encodedInput = pkt.inputs[offset];
+            const encodedInput = pkt.inputs[sendHistorySize-offset-1];
             // Save the input history sent in the packet.
             this.setRemoteEncodedInput(encodedInput, receivedTick-offset);
           }
