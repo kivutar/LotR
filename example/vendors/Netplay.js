@@ -265,7 +265,7 @@ export default class Netplay {
       // Rerun rollbackFrames number of updates.
       const rollbackFrames = lastGameTick - lastSyncedTick;
 
-      // console.log("Rollback", rollbackFrames, "frames");
+      console.log("Rollback", rollbackFrames, "frames");
 
       // Must revert back to the last known synced game frame.
       this.unserialize();
@@ -406,8 +406,7 @@ export default class Netplay {
 
   inputGetState(port /*uint*/, tck /*int64*/) /*PlayerState*/ {
     const frame = (MaxFrames + tck) % MaxFrames;
-    const st = inputBuffers[port][frame];
-    return st;
+    return inputBuffers[port][frame];
   }
 
   // inputGetLatest returns the most recently polled inputs

@@ -133,7 +133,7 @@ function registerConn(conn, lpp, rpp) {
   });
 }
 
-peer.on("connection", (conn) => registerConn(conn, 1, 0));
+peer.on("connection", (conn) => registerConn(conn, 0, 1));
 
 btn.addEventListener("click", () => {
   const peerId = window.prompt('Peer ID');
@@ -141,6 +141,6 @@ btn.addEventListener("click", () => {
     return;
 
   const conn = peer.connect(peerId);
-  registerConn(conn, 0, 1);
+  registerConn(conn, 1, 0);
 });
 
