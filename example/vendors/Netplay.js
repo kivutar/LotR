@@ -73,10 +73,12 @@ export default class Netplay {
       const data = messages.shift();
       const pkt = JSON.parse(data);
 
-      if (pkt.code == MsgCodeHandshake) {
+      switch (pkt.code) {
+      case MsgCodeHandshake: {
         connectedToClient = true;
       }
-      else if (pkt.code == MsgCodePlayerInput) {
+      break;
+      case MsgCodePlayerInput: {
         // console.log("Received", pkt.inputs);
         // Break apart the packet into its parts.
         const tickDelta = pkt.tickDelta;
@@ -100,15 +102,18 @@ export default class Netplay {
           }
         }
       }
-      else if (pkt.code == MsgCodePing) {
+      break;
+      case MsgCodePing: {
         const t = pkt.time;
         this.sendPacket(this.makePongPacket(t), 1);
       }
-      else if (pkt.code == MsgCodePong) {
+      break;
+      case MsgCodePong: {
         const t = pkt.time;
         // console.log(t);
       }
-      else if (pkt.code == MsgCodeSync) {
+      break;
+      case MsgCodeSync: {
         // Ignore any tick that isn't more recent than the last sync data
         if (!isStateDesynced && pkt.tick > remoteSyncDataTick) {
           remoteSyncDataTick = pkt.tick;
@@ -117,6 +122,8 @@ export default class Netplay {
           // Check for a desync
           isDesynced();
         }
+      }
+      break;
       }
     }
   }
