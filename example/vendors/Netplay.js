@@ -40,11 +40,11 @@ let inputBuffers = [
   Array.from(Array(MaxFrames), () => new Array(12)),
   Array.from(Array(MaxFrames), () => new Array(12)),
   Array.from(Array(MaxFrames), () => new Array(12)),
-]; //[MaxPlayers][MaxFrames]PlayerState{}
+];
 
 let saved = {
 	GameState: null,
-	Inputs: null,
+//	Inputs: null,
 	Tick: 0,
 }
 
@@ -79,7 +79,6 @@ export default class Netplay {
       }
       break;
       case MsgCodePlayerInput: {
-        // console.log("Received", pkt.inputs);
         // Break apart the packet into its parts.
         const tickDelta = pkt.tickDelta;
         const receivedTick = pkt.receivedTick;
@@ -95,7 +94,7 @@ export default class Netplay {
 
           confirmedTick = receivedTick;
 
-          for (let offset = sendHistorySize - 1; offset >= 0; offset--) { // 4, 3, 2, 1, 0
+          for (let offset = sendHistorySize - 1; offset >= 0; offset--) {
             const encodedInput = pkt.inputs[sendHistorySize-offset-1];
             // Save the input history sent in the packet.
             this.setRemoteEncodedInput(encodedInput, receivedTick-offset);
@@ -361,7 +360,7 @@ export default class Netplay {
   }
 
   // Get input from the remote player for the passed in game tick.
-  getRemoteInputState(tck /*int64*/) /*input.PlayerState*/ {
+  getRemoteInputState(tck) {
     if (tck > confirmedTick) {
       // Repeat the last confirmed input when we don't have a confirmed tck
       tck = confirmedTick;
@@ -371,32 +370,31 @@ export default class Netplay {
   }
 
   // Get input state for the local client
-  getLocalInputState(tck /*int64*/) /*input.PlayerState*/ {
+  getLocalInputState(tck) {
     return this.decodeInput(localInputHistory[(historySize+tck)%historySize]);
   }
 
   // Send the inputState for the local player to the remote player for the given game tick.
-  sendInputData(tck /*int64*/) {
+  sendInputData(tck) {
     // Don't send input data when not connect to another player's game client.
     if (!connectedToClient)
       return;
 
     // console.log("Send input packet", tck)
-
     this.sendPacket(this.makeInputPacket(tck), 1);
   }
 
-  setLocalInput(st /*input.PlayerState*/, tck /*int64*/) {
+  setLocalInput(st, tck) {
     const encodedInput = this.encodeInput(st);
     localInputHistory[(historySize+tck)%historySize] = encodedInput;
   }
 
-  setRemoteEncodedInput(encodedInput /*uint32*/, tck /*int64*/) {
+  setRemoteEncodedInput(encodedInput, tck) {
     remoteInputHistory[(historySize+tck)%historySize] = encodedInput;
   }
 
   // Handles sending packets to the other client. Set duplicates to something > 0 to send more than once.
-  sendPacket(packet /*[]byte*/, duplicates /*int*/) {
+  sendPacket(packet, duplicates) {
     if (duplicates == 0)
       duplicates = 1;
 
@@ -404,33 +402,33 @@ export default class Netplay {
       this.conn.send(packet);
   }
 
-  inputGetState(port /*uint*/, tck /*int64*/) /*PlayerState*/ {
+  inputGetState(port, tck) {
     const frame = (MaxFrames + tck) % MaxFrames;
     return inputBuffers[port][frame];
   }
 
   // inputGetLatest returns the most recently polled inputs
-  inputGetLatest(port /*uint*/) /*PlayerState*/ {
+  inputGetLatest(port) {
     return this.inputState(port);
   }
 
   // returns the input state at the current tick
-  inputCurrentState(port /*uint*/) /*PlayerState*/ {
+  inputCurrentState(port) {
     return this.inputGetState(port, tick);
   }
 
-  inputIndex(offset /*int64*/) /*int64*/ {
+  inputIndex(offset) {
     return (MaxFrames + tick + offset) % MaxFrames;
   }
 
   // inputSetState forces the input state for a given player
-  inputSetState(port /*uint*/, st /*PlayerState*/) {
+  inputSetState(port, st) {
     for (let i = 0; i < 12; i++)
       inputBuffers[port][this.inputIndex(0)][i] = st[i];
   }
 
   // Generate a packet containing information about player input.
-  makeInputPacket(tck /*int64*/) /*[]byte*/ {
+  makeInputPacket(tck) {
     let pkt = {
       code: MsgCodePlayerInput,
       tickDelta: localTickDelta,
@@ -442,7 +440,6 @@ export default class Netplay {
     // console.log("Make input", tck, historyIndexStart)
     for (let i = 0; i < sendHistorySize; i++) {
       const encodedInput = localInputHistory[(historySize+historyIndexStart+i)%historySize];
-      // binary.Write(buf, binary.LittleEndian, encodedInput);
       pkt.inputs[i] = encodedInput;
       // console.log((historySize + historyIndexStart + i) % historySize)
     }
@@ -456,7 +453,7 @@ export default class Netplay {
   }
 
   // Make a ping packet
-  makePingPacket(t /*time.Time*/) /*[]byte*/ {
+  makePingPacket(t) {
     return JSON.stringify({
       code: MsgCodePing,
       time: t,
@@ -464,7 +461,7 @@ export default class Netplay {
   }
 
   // Make pong packet
-  makePongPacket(t /*time.Time*/) /*[]byte*/ {
+  makePongPacket(t) {
     return JSON.stringify({
       code: MsgCodePong,
       time: t,
@@ -477,7 +474,7 @@ export default class Netplay {
   }
 
   // Make a sync data packet
-  makeSyncDataPacket(tck, syncData) /*[]byte*/ {
+  makeSyncDataPacket(tck, syncData) {
     return JSON.stringify({
       code: MsgCodeSync,
       tick: tck,
@@ -486,12 +483,12 @@ export default class Netplay {
   }
 
   // Generate handshake packet for connecting with another client.
-  makeHandshakePacket() /*[]byte*/ {
+  makeHandshakePacket() {
     return JSON.stringify({code: MsgCodeHandshake});
   }
 
   // Encodes the player input state into a compact form for network transmission.
-  encodeInput(st /*input.PlayerState*/) /*uint32*/ {
+  encodeInput(st) {
     let out = 0;
     for (let i = 0; i < 12; i++)
       out |= (st[i] << i);
@@ -499,8 +496,8 @@ export default class Netplay {
   }
 
   // Decodes the input from a packet generated by encodeInput().
-  decodeInput(inp /*uint32*/) /*input.PlayerState*/ {
-    let st = {}; /*input.PlayerState{}*/
+  decodeInput(inp) {
+    let st = {};
     for (let i = 0; i < 12; i++)
       st[i] = (inp & (1 << i)) != 0;
     return st;
