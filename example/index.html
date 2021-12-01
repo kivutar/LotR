@@ -41,6 +41,14 @@
         display: none;
         color: white;
       }
+      #peerId {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        margin-top: 25vh;
+        text-align: center;
+        color: lightgreen;
+      }
     </style>
   </head>
 
@@ -48,11 +56,13 @@
     <div id="wrapper">
       <canvas id="screen"></canvas>
     </div>
+    <div id="peerId">Your Peer ID is</div>
     <button>Start</button>
     <div id="loading">Loading game...</div>
   </body>
 
-  <script src="Deep Dungeon.js"></script>
+  <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+  <script src="Bobble.js"></script>
   <script src="lutro_libretro.js"></script>
 
   <script type="module" src="main.js"></script>

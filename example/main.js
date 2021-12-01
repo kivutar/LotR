@@ -1,5 +1,6 @@
 import Video from "./vendors/Video.js";
 import Audio from "./vendors/Audio.js";
+import Netplay from "./vendors/Netplay.js";
 
 const keyMapping = {
   KeyZ: 0, // RETRO_DEVICE_ID_JOYPAD_B
@@ -31,18 +32,20 @@ const joyMapping = {
   5: 11, // RETRO_DEVICE_ID_JOYPAD_R
 }
 
+let polled = [{},{},{},{},{}];
+
 function pollInputs(retro) {
   window.addEventListener(`keydown`, e => {
     e.preventDefault();
     if (keyMapping.hasOwnProperty(e.code)) {
-      retro.input_user_state[0][keyMapping[e.code]] = true;
+      polled[0][keyMapping[e.code]] = true;
     }
   });
 
   window.addEventListener(`keyup`, e => {
     e.preventDefault();
     if (keyMapping.hasOwnProperty(e.code)) {
-      retro.input_user_state[0][keyMapping[e.code]] = false;
+      polled[0][keyMapping[e.code]] = false;
     }
   });
 
@@ -64,17 +67,17 @@ function pollInputs(retro) {
       if (!pad) continue;
       pad.buttons.forEach((v, code) => {
         if (joyMapping.hasOwnProperty(code))
-          retro.input_user_state[pad.index][joyMapping[code]] = v.pressed
+          polled[pad.index][joyMapping[code]] = v.pressed
       });
-      if (pad.axes[0] >  0.5) retro.input_user_state[pad.index][7] = true;
-      if (pad.axes[0] < -0.5) retro.input_user_state[pad.index][6] = true;
-      if (pad.axes[1] >  0.5) retro.input_user_state[pad.index][5] = true;
-      if (pad.axes[1] < -0.5) retro.input_user_state[pad.index][4] = true;
+      if (pad.axes[0] >  0.5) polled[pad.index][7] = true;
+      if (pad.axes[0] < -0.5) polled[pad.index][6] = true;
+      if (pad.axes[1] >  0.5) polled[pad.index][5] = true;
+      if (pad.axes[1] < -0.5) polled[pad.index][4] = true;
     }
   }, 8)
 }
 
-function run(gamePath) {
+function run(gamePath, conn, lpp, rpp) {
   const canvas = document.querySelector("#screen");
   const video = new Video(canvas);
   const audio = new Audio();
@@ -83,16 +86,61 @@ function run(gamePath) {
   Module.audio = audio;
 
   libretro(Module).then((retro) => {
+    const netplay = new Netplay(
+      conn,                                              // p2p connection
+      () => { retro.input_user_state[lpp] = polled[0] }, // input poll callback
+      (port) => { return retro.input_user_state[port] }, // input state callback
+      () => retro.iterate(),                             // update game callback
+      () => retro.getState(),                            // serialize callback
+      (st) => retro.setState(st),                        // unserialize callback
+      () => retro.setFast(),
+      () => retro.unsetFast(),
+      lpp,                                               // local player port
+      rpp,                                               // remote player port
+    );
+    retro.inputState = (port, id) => { return netplay.inputCurrentState(port)[id] };
+
     retro.loadGame(gamePath);
     pollInputs(retro);
     document.querySelector("#loading").style.display = "none";
-    retro.loop(-1);
+
+    const iterate = () => {
+      netplay.update();
+      window.requestAnimationFrame(iterate);
+    }
+    window.requestAnimationFrame(iterate);
   });
 }
 
 const btn = document.querySelector("button");
-btn.addEventListener("click", function () {
-  run("main.lua");
-  document.querySelector("#loading").style.display = "block";
-  btn.style.display = "none";
+const secret = document.querySelector("#peerId");
+
+let peer = new Peer();
+
+peer.on("open", (id) => {
+  console.log("My peer ID is: " + id);
+  secret.innerHTML = id;
 });
+
+function registerConn(conn, lpp, rpp) {
+  console.log("connection", conn);
+
+  conn.on("open", () => {
+    run("main.lua", conn, lpp, rpp);
+    document.querySelector("#loading").style.display = "block";
+    btn.style.display = "none";
+    secret.style.display = "none";
+  });
+}
+
+peer.on("connection", (conn) => registerConn(conn, 0, 1));
+
+btn.addEventListener("click", () => {
+  const peerId = window.prompt('Peer ID');
+  if (!peerId)
+    return;
+
+  const conn = peer.connect(peerId);
+  registerConn(conn, 1, 0);
+});
+
